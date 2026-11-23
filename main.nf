@@ -8,7 +8,8 @@ nextflow.enable.dsl = 2
  *   --paths        comma separated paths, default '/' (the whole collection)
  *   --outdir       default results
  *
- * Needs the secret GLOBUS_TOKENS (made once with globus_login.py, see README).
+ * Needs the login in GLOBUS_TOKENS (made once with globus_login.py, see README):
+ *   --globus_tokens  the login JSON, or leave unset to use the Nextflow secret GLOBUS_TOKENS
  */
 
 include { globus_list_process }     from './modules/globus/globus_list.nf'

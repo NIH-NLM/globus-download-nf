@@ -17,7 +17,6 @@
  */
 process globus_download_process {
     tag "${relpath}"
-    secret 'GLOBUS_TOKENS'
     errorStrategy 'retry'
     maxRetries 2
     publishDir "${params.outdir}",

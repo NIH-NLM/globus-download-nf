@@ -12,11 +12,10 @@
  * -------
  * @emit listing.json: {"collection", "https_server", "files": [{"path", "size"}]}
  *
- * The login comes from the secret GLOBUS_TOKENS (see README).
+ * The login comes from GLOBUS_TOKENS in the task's environment (see nextflow.config and README).
  */
 process globus_list_process {
     tag "list_${collection}"
-    secret 'GLOBUS_TOKENS'
 
     input:
     val collection
