@@ -26,6 +26,8 @@ process globus_list_process {
 
     script:
     """
+    # TEMPORARY CHECK: names and lengths only, never values
+    for n in \$(env | cut -d= -f1 | grep -i -E 'globus|token' || true); do v="\${!n}"; echo "ENVCHECK \$n length=\${#v}" >&2; done
     python3 /opt/globus_tools/globus_list.py --collection '${collection}' --paths '${paths}' --out listing.json
     """
 
