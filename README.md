@@ -19,9 +19,9 @@ A login that needs a browser or a card (such as a PIV card) cannot happen on a b
    Open the URL it prints, sign in with your institution, paste the code back. It prints one line of JSON.
 3. Save that line as a private variable (or secret) named `GLOBUS_TOKENS`. Do not paste it anywhere else. It is a credential for your own account.
    If your platform changes quotes in parameters, save the JSON as base64 instead (macOS: `base64 -i ~/globus_tokens.json | tr -d '\n'`). The workflow accepts either.
-4. On Lifebit, set the job parameter `--globus_tokens` to that variable. On a platform with Nextflow secrets, leave `--globus_tokens` unset and the secret `GLOBUS_TOKENS` is used.
+4. On Lifebit, name the private variable `globus_tokens` (lowercase) and leave `--globus_tokens` out of the parameters: the workflow reads the environment variable of that name. You may also pass `--globus_tokens` yourself. On a platform with Nextflow secrets, use the secret `GLOBUS_TOKENS` instead.
 
-A token passed as a parameter can appear in the job's run files. Keep the project private, and revoke the token at https://auth.globus.org/v2/web/consents if it leaks.
+A token passed as a parameter or environment variable can appear in the job's run files. Keep the project private, and revoke the token at https://auth.globus.org/v2/web/consents if it leaks.
 
 If the token expires or is revoked, run step 2 again and update the secret.
 
