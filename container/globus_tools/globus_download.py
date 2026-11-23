@@ -68,17 +68,57 @@ def download_file(https_server, path, size, out_root, authorizer, retries=3, bac
     raise DownloadError(f"download failed for {path}: {last}")
 
 
+def download_batch(https_server, entries, out_root, authorizer, retries=3, backoff=2.0) -> list:
+    """Download every (path, size) in entries, one after the other.
+
+    A file that fails does not stop the rest. Returns the paths that failed
+    (empty when all succeeded); each failure is printed to stderr.
+    """
+    failed = []
+    for path, size in entries:
+        try:
+            download_file(https_server, path, size, out_root, authorizer, retries, backoff)
+        except DownloadError as e:
+            print(e, file=sys.stderr)
+            failed.append(path)
+    return failed
+
+
+def read_manifest(manifest: str) -> list:
+    entries = []
+    with open(manifest) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            path, _, size = line.rpartition("\t")
+            entries.append((path, int(size)))
+    return entries
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--https-server", required=True)
-    ap.add_argument("--path", required=True)
-    ap.add_argument("--size", required=True, type=int)
+    ap.add_argument("--path")
+    ap.add_argument("--size", type=int)
+    ap.add_argument("--manifest", help="file with one 'path<TAB>size' per line, instead of --path/--size")
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
+    if bool(args.manifest) == bool(args.path):
+        ap.error("give either --manifest, or --path with --size")
+    if args.path and args.size is None:
+        ap.error("--path needs --size")
     try:
         import auth
 
-        download_file(args.https_server, args.path, args.size, args.out, auth.https_authorizer())
+        authorizer = auth.https_authorizer()
+        if args.manifest:
+            failed = download_batch(args.https_server, read_manifest(args.manifest), args.out, authorizer)
+            if failed:
+                print(f"{len(failed)} file(s) failed: " + ", ".join(failed), file=sys.stderr)
+                return 1
+        else:
+            download_file(args.https_server, args.path, args.size, args.out, authorizer)
     except Exception as e:
         print(f"{e}", file=sys.stderr)
         return 1

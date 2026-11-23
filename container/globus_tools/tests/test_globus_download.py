@@ -165,3 +165,52 @@ def test_zero_byte_file_downloads(server, tmp_path):
     got = dl(srv, "empty.txt", b"", tmp_path)
     assert os.path.getsize(got) == 0
     assert not os.path.exists(got + ".part")
+
+
+def test_batch_downloads_every_file(server, tmp_path):
+    files = {"A/x.fastq.gz": b"xxxx", "A/y.fastq.gz": b"yy", "B/z.fastq.gz": b"zzzzzz"}
+    srv = server(files)
+    entries = [(p, len(d)) for p, d in files.items()]
+    failed = globus_download.download_batch(srv.url, entries, str(tmp_path), Auth(), backoff=0)
+    assert failed == []
+    for p, d in files.items():
+        assert (tmp_path / p).read_bytes() == d
+
+
+def test_batch_keeps_going_after_one_file_fails_and_names_it(server, tmp_path):
+    files = {"A/ok1": b"11", "A/bad": b"2222", "A/ok2": b"333"}
+    srv = server(files)
+    entries = [("A/ok1", 2), ("A/bad", 99), ("A/ok2", 3)]  # wrong size for 'bad'
+    failed = globus_download.download_batch(srv.url, entries, str(tmp_path), Auth(), backoff=0)
+    assert failed == ["A/bad"]
+    assert (tmp_path / "A" / "ok1").exists() and (tmp_path / "A" / "ok2").exists()
+    assert not (tmp_path / "A" / "bad").exists()
+
+
+def test_main_manifest_exit_codes(server, tmp_path, monkeypatch):
+    import auth
+
+    monkeypatch.setattr(auth, "https_authorizer", lambda: Auth())
+    srv = server({"A/f1": b"11", "A/f2": b"222"})
+    good = tmp_path / "good.tsv"
+    good.write_text("A/f1\t2\nA/f2\t3\n")
+    out = tmp_path / "out"
+    assert globus_download.main(["--https-server", srv.url, "--manifest", str(good), "--out", str(out)]) == 0
+    assert (out / "A" / "f2").read_bytes() == b"222"
+    bad = tmp_path / "bad.tsv"
+    bad.write_text("A/f1\t2\nA/f2\t77\n")
+    out2 = tmp_path / "out2"
+    assert globus_download.main(["--https-server", srv.url, "--manifest", str(bad), "--out", str(out2)]) == 1
+    assert (out2 / "A" / "f1").exists()
+
+
+def test_manifest_error_does_not_leak_token(server, tmp_path, monkeypatch, capsys):
+    import auth
+
+    monkeypatch.setattr(auth, "https_authorizer", lambda: Auth())
+    srv = server({"f": b"x"})
+    srv.status = 401
+    m = tmp_path / "m.tsv"
+    m.write_text("f\t1\n")
+    globus_download.main(["--https-server", srv.url, "--manifest", str(m), "--out", str(tmp_path / "o")])
+    assert TOKEN not in capsys.readouterr().err

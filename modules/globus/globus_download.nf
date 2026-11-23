@@ -1,22 +1,26 @@
 /**
  * Globus Download Module
  *
- * Downloads ONE file over HTTPS. One task per file, so files download in
- * parallel and a failed file is retried on its own.
+ * Downloads one BATCH of files over HTTPS (params.batch_size files, one after
+ * the other). Batches run in parallel, so many files download at once while
+ * the number of connections to the server stays small. A file that fails does
+ * not stop the rest of its batch, but the task fails at the end and names it.
  *
  * Input:
  * ------
  * @param tuple:
- *   - relpath:       path of the file in the collection, no leading slash
- *   - size:          size in bytes from the listing
+ *   - relpaths:      list of file paths in the collection, no leading slash
+ *   - sizes:         list of sizes in bytes from the listing (same order)
  *   - https_server:  HTTPS address of the collection
+ * @param GLOBUS_TOKENS: the login (JSON or base64), handed over as an environment
+ *                    variable so it is not part of the command text
  *
  * Output:
  * -------
- * @emit tuple(relpath, the downloaded file), published to params.outdir with its folders
+ * @emit tuple(relpaths, the downloaded files), published to params.outdir with their folders
  */
 process globus_download_process {
-    tag "${relpath}"
+    tag "${relpaths[0]} +${relpaths.size() - 1}"
     errorStrategy 'retry'
     maxRetries 2
     publishDir "${params.outdir}",
@@ -24,20 +28,24 @@ process globus_download_process {
         saveAs: { fn -> fn.replaceFirst(/^out\//, '') }
 
     input:
-    tuple val(relpath), val(size), val(https_server)
+    tuple val(relpaths), val(sizes), val(https_server)
+    env 'GLOBUS_TOKENS'
 
     output:
-    tuple val(relpath), path("out/${relpath}", glob: false)
+    tuple val(relpaths), path('out/**')
 
     script:
+    def tsv = [relpaths, sizes].transpose().collect { p, s -> "${p}\t${s}" }.join('\n')
     """
-    export GLOBUS_TOKENS='${params.globus_tokens}'
-    python3 /opt/globus_tools/globus_download.py --https-server '${https_server}' --path '${relpath}' --size ${size} --out out
+cat > batch.tsv <<'EOF_BATCH'
+${tsv}
+EOF_BATCH
+    python3 /opt/globus_tools/globus_download.py --https-server '${https_server}' --manifest batch.tsv --out out
     """
 
     stub:
+    def makes = relpaths.collect { "mkdir -p \"out/\$(dirname '${it}')\" && touch 'out/${it}'" }.join('\n')
     """
-    mkdir -p "out/\$(dirname '${relpath}')"
-    touch 'out/${relpath}'
+    ${makes}
     """
 }

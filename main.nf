@@ -6,6 +6,7 @@ nextflow.enable.dsl = 2
  *
  *   --collection   Globus collection UUID (required)
  *   --paths        comma separated paths, default '/' (the whole collection)
+ *   --batch_size   files per download task, default 10 (the tasks run in parallel)
  *   --outdir       default results
  *
  * Needs the login in GLOBUS_TOKENS (made once with globus_login.py, see README):
@@ -29,14 +30,25 @@ workflow {
         error "globus_tokens is still a placeholder (text in {{ }}): the platform did not fill it in. Check the variable name: it must exist in this workspace."
     }
 
-    listing = globus_list_process(params.collection, params.paths)
+    tokens = Channel.value(params.globus_tokens)
+
+    listing = globus_list_process(params.collection, params.paths, tokens)
 
     files = listing.flatMap { f ->
         def j = new groovy.json.JsonSlurper().parseText(f.text)
         j.files.collect { x -> tuple(x.path, x.size, j.https_server) }
     }
 
-    downloaded = globus_download_process(files)
+    // batches of params.batch_size files; the batches download in parallel
+    batches = files
+        .buffer(size: params.batch_size as int, remainder: true)
+        .map { b -> tuple(b.collect { it[0] }, b.collect { it[1] }, b[0][2]) }
+
+    downloaded = globus_download_process(batches, tokens)
+        .flatMap { rels, fs ->
+            def list = (fs instanceof List) ? fs : [fs]
+            list.collect { f -> tuple(rels.find { r -> f.toString().endsWith('/out/' + r) }, f) }
+        }
 
     // one checksum task per folder that has a fastq_md5sum.txt, so no task holds the whole collection
     by_folder = downloaded

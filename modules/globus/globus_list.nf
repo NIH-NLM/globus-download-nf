@@ -7,12 +7,14 @@
  * ------
  * @param collection: Globus collection UUID
  * @param paths:      comma separated paths ('/' = the whole collection)
+ * @param GLOBUS_TOKENS: the login (JSON or base64), handed over as an environment
+ *                    variable so it is not part of the command text
  *
  * Output:
  * -------
  * @emit listing.json: {"collection", "https_server", "files": [{"path", "size"}]}
  *
- * The login comes from --globus_tokens, exported inside the task (see README).
+ * The login comes in through the env input GLOBUS_TOKENS (see README).
  */
 process globus_list_process {
     tag "list_${collection}"
@@ -20,13 +22,13 @@ process globus_list_process {
     input:
     val collection
     val paths
+    env 'GLOBUS_TOKENS'
 
     output:
     path 'listing.json'
 
     script:
     """
-    export GLOBUS_TOKENS='${params.globus_tokens}'
     python3 /opt/globus_tools/globus_list.py --collection '${collection}' --paths '${paths}' --out listing.json
     """
 

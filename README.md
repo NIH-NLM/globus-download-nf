@@ -21,7 +21,7 @@ A login that needs a browser or a card (such as a PIV card) cannot happen on a b
    If your platform changes quotes in parameters, save the JSON as base64 instead (macOS: `base64 -i ~/globus_tokens.json | tr -d '\n'`). The workflow accepts either.
 4. On Lifebit, make a private variable named `globus_tokens` (lowercase, in the workspace where you run) and start the job with the parameter `globus_tokens=${{globus_tokens}}` (for the command line: `--parameter 'globus_tokens=${{globus_tokens}}'`). Elsewhere, pass `--globus_tokens` with the value.
 
-The token is written into each task's script, so it can appear in the job's run files. Keep the project private, and revoke the token at https://auth.globus.org/v2/web/consents if it leaks.
+The token is handed to each task as an environment variable, not in the command text, but it is still kept in the task's run files, so it can appear in the job's run files. Keep the project private, and revoke the token at https://auth.globus.org/v2/web/consents if it leaks.
 
 If the token expires or is revoked, run step 2 again and update the secret.
 
@@ -33,6 +33,7 @@ nextflow run main.nf --collection COLLECTION_UUID --paths '/' --outdir results
 
 - `--collection` the collection UUID (required)
 - `--paths` comma separated folders, default `/` (the whole collection), for example `--paths 'FolderA,FolderB'`
+- `--batch_size` files per download task, default `10`. The tasks run in parallel, so 304 files make 31 tasks
 - `--outdir` default `results`
 - `--globus_image` to use a different image
 
