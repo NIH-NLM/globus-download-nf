@@ -49,3 +49,27 @@ def test_expired_token_gives_clear_error_without_token(monkeypatch, capsys):
         assert "globus_login.py" in str(e.value)
     captured = capsys.readouterr()
     assert SECRET not in captured.out + captured.err
+
+
+def test_base64_encoded_json_is_accepted():
+    import base64
+
+    enc = base64.b64encode(GOOD.encode()).decode()
+    assert auth.load_tokens({"GLOBUS_TOKENS": enc})["transfer"] == SECRET + "T"
+
+
+def test_bad_value_error_reports_safe_facts_only():
+    with pytest.raises(auth.AuthError) as e:
+        auth.load_tokens({"GLOBUS_TOKENS": "{{GLOBUS_TOKENS}}"})
+    msg = str(e.value)
+    assert "length 17" in msg
+    assert "starts with '{': yes" in msg
+    assert "double quotes: no" in msg
+    assert "GLOBUS_TOKENS}}" not in msg
+
+
+def test_stripped_quotes_error_does_not_leak_token():
+    with pytest.raises(auth.AuthError) as e:
+        auth.load_tokens({"GLOBUS_TOKENS": "{transfer:" + SECRET + "}"})
+    assert SECRET not in str(e.value)
+    assert "double quotes: no" in str(e.value)

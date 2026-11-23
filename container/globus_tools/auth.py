@@ -1,7 +1,9 @@
-"""Sign-in for the workflow scripts. Reads GLOBUS_TOKENS (JSON from globus_login.py).
+"""Sign-in for the workflow scripts. Reads GLOBUS_TOKENS (JSON from globus_login.py, or that JSON as base64).
 
 Error messages never contain token text.
 """
+import base64
+import binascii
 import json
 import os
 
@@ -15,14 +17,30 @@ class AuthError(Exception):
 EXPIRED = "Globus login expired or revoked: run globus_login.py again and update the GLOBUS_TOKENS secret"
 
 
+def _parse(raw: str):
+    # plain JSON first, then base64 of that JSON (survives parameter quoting)
+    try:
+        return json.loads(raw)
+    except ValueError:
+        pass
+    try:
+        return json.loads(base64.b64decode(raw.strip(), validate=True).decode())
+    except (ValueError, binascii.Error):
+        pass
+    # only facts about the value, never the value itself
+    yn = lambda b: "yes" if b else "no"
+    raise AuthError(
+        "GLOBUS_TOKENS is not valid JSON or base64 "
+        f"(length {len(raw)}, starts with '{{': {yn(raw.startswith('{'))}, "
+        f"double quotes: {yn(chr(34) in raw)}): recreate it with globus_login.py"
+    )
+
+
 def load_tokens(env=os.environ) -> dict:
     raw = env.get("GLOBUS_TOKENS")
     if not raw:
         raise AuthError("GLOBUS_TOKENS is not set: create it with globus_login.py")
-    try:
-        tokens = json.loads(raw)
-    except ValueError:
-        raise AuthError("GLOBUS_TOKENS is not valid JSON: recreate it with globus_login.py") from None
+    tokens = _parse(raw)
     missing = [k for k in ("transfer", "https", "client_id") if not isinstance(tokens, dict) or k not in tokens]
     if missing:
         raise AuthError("GLOBUS_TOKENS is missing: " + ", ".join(missing))
