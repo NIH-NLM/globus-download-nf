@@ -26,6 +26,14 @@ workflow {
         error "globus_tokens is still a placeholder (text in {{ }}): the platform did not fill it in. Leave --globus_tokens out and set the private variable globus_tokens instead."
     }
 
+    // TEMPORARY CHECK: names and lengths only, never values
+    System.getenv().each { k, v ->
+        if( k.toLowerCase().contains('globus') || k.toLowerCase().contains('token') ) {
+            log.info "ENVCHECK head ${k} length=${v.length()}"
+        }
+    }
+    log.info "ENVCHECK params.globus_tokens length=${params.globus_tokens ? params.globus_tokens.toString().length() : 0}"
+
     listing = globus_list_process(params.collection, params.paths)
 
     files = listing.flatMap { f ->
