@@ -12,7 +12,7 @@
  * -------
  * @emit listing.json: {"collection", "https_server", "files": [{"path", "size"}]}
  *
- * The login comes from GLOBUS_TOKENS in the task's environment (see nextflow.config and README).
+ * The login comes from --globus_tokens, exported inside the task (see README).
  */
 process globus_list_process {
     tag "list_${collection}"
@@ -26,8 +26,7 @@ process globus_list_process {
 
     script:
     """
-    # TEMPORARY CHECK: names and lengths only, never values
-    for n in \$(env | cut -d= -f1 | grep -i -E 'globus|token' || true); do v="\${!n}"; echo "ENVCHECK \$n length=\${#v}" >&2; done
+    export GLOBUS_TOKENS='${params.globus_tokens}'
     python3 /opt/globus_tools/globus_list.py --collection '${collection}' --paths '${paths}' --out listing.json
     """
 

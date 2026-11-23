@@ -31,6 +31,7 @@ process globus_download_process {
 
     script:
     """
+    export GLOBUS_TOKENS='${params.globus_tokens}'
     python3 /opt/globus_tools/globus_download.py --https-server '${https_server}' --path '${relpath}' --size ${size} --out out
     """
 

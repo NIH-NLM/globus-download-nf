@@ -9,7 +9,7 @@ nextflow.enable.dsl = 2
  *   --outdir       default results
  *
  * Needs the login in GLOBUS_TOKENS (made once with globus_login.py, see README):
- *   --globus_tokens  the login JSON; default: the environment variable globus_tokens, else the Nextflow secret GLOBUS_TOKENS
+ *   --globus_tokens  the login JSON or its base64 (required; on Lifebit a private variable, see README)
  */
 
 include { globus_list_process }     from './modules/globus/globus_list.nf'
@@ -21,18 +21,13 @@ workflow {
         error "--collection is required (the Globus collection UUID)"
     }
 
+    if( !params.globus_tokens ) {
+        error "--globus_tokens is required (the login from globus_login.py). On Lifebit: --parameter 'globus_tokens=\${{globus_tokens}}'"
+    }
     // a placeholder the platform did not fill in would fail only inside the first task
     if( params.globus_tokens && params.globus_tokens.toString().contains('{{') ) {
-        error "globus_tokens is still a placeholder (text in {{ }}): the platform did not fill it in. Leave --globus_tokens out and set the private variable globus_tokens instead."
+        error "globus_tokens is still a placeholder (text in {{ }}): the platform did not fill it in. Check the variable name: it must exist in this workspace."
     }
-
-    // TEMPORARY CHECK: names and lengths only, never values
-    System.getenv().each { k, v ->
-        if( k.toLowerCase().contains('globus') || k.toLowerCase().contains('token') ) {
-            log.info "ENVCHECK head ${k} length=${v.length()}"
-        }
-    }
-    log.info "ENVCHECK params.globus_tokens length=${params.globus_tokens ? params.globus_tokens.toString().length() : 0}"
 
     listing = globus_list_process(params.collection, params.paths)
 
