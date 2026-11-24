@@ -4,6 +4,8 @@ A Nextflow workflow that downloads everything under one or more folders of a Glo
 
 It reads the collection over HTTPS, so the collection needs HTTPS access turned on.
 
+> **NIH HPC collections: use the notebook instead.** NIH HPC turns HTTPS download off on purpose, for security (the symptom is HTTP 500 with `globus_xio: System error in connect`). Their advice is to install Globus Connect Personal, create your own endpoint and transfer to it. For those collections the Nextflow download in this repo is not used; follow [`ipynb/globus_transfer_to_jupyter.ipynb`](ipynb/globus_transfer_to_jupyter.ipynb), which does exactly that in a Lifebit Jupyter session using Globus Transfer. The Nextflow workflow below is kept for collections that do allow HTTPS.
+
 ## One-time setup (each user)
 
 A login that needs a browser or a card (such as a PIV card) cannot happen on a batch node, so you sign in once and save a long-lived token as a secret.
