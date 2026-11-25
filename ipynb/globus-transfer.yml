@@ -1,0 +1,29 @@
+# globus-transfer: conda environment for ipynb/globus_transfer_to_jupyter.ipynb
+#
+# Same pattern as the Elements of Style environment (eos.yml): one file, one
+# environment, runs on your laptop, Google Cloud Shell and Lifebit CloudOS.
+#
+# Bootstrap once, in a Terminal:
+#     conda env create -f ipynb/globus-transfer.yml
+#     conda activate globus-transfer
+#     python -m ipykernel install --user --name globus-transfer --display-name "globus-transfer"
+#
+# Then choose the "globus-transfer" kernel when you open the notebook.
+name: globus-transfer
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - jupyterlab
+  - ipykernel
+  - requests
+  - git
+  - wget
+  - pip
+  - pip:
+      # the same version the workflow image uses (container/globus_tools/requirements.txt)
+      - globus-sdk==4.10.0
+      # provides the `globus endpoint local-id` command used in step 6
+      - globus-cli
